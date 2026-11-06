@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EV Şarj & Ücret Hesaplayıcı</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        evGreen: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Custom input range styling */
+        input[type=range] {
+            accent-color: #22c55e;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-200">
+    <!-- Main Mobile Frame Container -->
+    <div class="max-w-md mx-auto min-h-screen flex flex-col justify-between shadow-2xl bg-white dark:bg-gray-900 border-x border-gray-100 dark:border-gray-800">
+        
+        <!-- Header -->
+        <header class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur sticky top-0 z-20">
+            <div class="flex items-center space-x-2">
+                <div class="p-2 bg-evGreen-500 text-white rounded-xl shadow-md shadow-evGreen-500/20">
+                    <i data-lucide="zap" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">EV Şarj Asistanı</h1>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Süre ve Ücret Hesaplayıcı</p>
+                </div>
+            </div>
+            <button id="themeToggleBtn" class="p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
+                <i data-lucide="moon" id="themeIcon" class="w-5 h-5"></i>
+            </button>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="p-4 flex-1 space-y-5 overflow-y-auto">
+
+            <!-- Navigation Tabs (AC / DC) -->
+            <div class="bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl flex text-sm font-semibold relative">
+                <button id="tabAc" onclick="switchTab('ac')" class="flex-1 py-3 rounded-xl flex items-center justify-center space-x-2 transition-all duration-200 shadow-sm bg-white dark:bg-gray-700 text-evGreen-600 dark:text-evGreen-500">
+                    <i data-lucide="plug" class="w-4 h-4"></i>
+                    <span>AC Şarj (Yavaş/Ev)</span>
+                </button>
+                <button id="tabDc" onclick="switchTab('dc')" class="flex-1 py-3 rounded-xl flex items-center justify-center space-x-2 transition-all duration-200 text-gray-500 dark:text-gray-400 hover:text-gray-700">
+                    <i data-lucide="zap-fast" class="w-4 h-4"></i>
+                    <span>DC Şarj (Hızlı)</span>
+                </button>
+            </div>
+
+            <!-- Inputs Section -->
+            <form id="calculatorForm" onsubmit="event.preventDefault();" class="space-y-4">
+
+                <!-- AC Specific Controls -->
+                <div id="acControls" class="space-y-4">
+                    <!-- Phase Selection -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Faz Tipi</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="relative flex items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all border-evGreen-500 bg-evGreen-50 dark:bg-evGreen-950/30 text-evGreen-700 dark:text-evGreen-400 font-medium" id="phase1Label">
+                                <input type="radio" name="phase" value="1" checked onchange="updatePhaseUI(); calculate();" class="sr-only">
+                                <i data-lucide="home" class="w-4 h-4 mr-2"></i> Monofaze (230V)
+                            </label>
+                            <label class="relative flex items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-medium" id="phase3Label">
+                                <input type="radio" name="phase" value="3" onchange="updatePhaseUI(); calculate();" class="sr-only">
+                                <i data-lucide="factory" class="w-4 h-4 mr-2"></i> Trifaze (400V)
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Amperage Input -->
+                    <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-2xl border border-gray-100 dark:border-gray-800">
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="acAmper" class="text-sm font-semibold">Akım Şiddeti (Amper)</label>
+                            <span class="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full font-mono" id="acKwCalculated">0.0 kW</span>
+                        </div>
+                        <div class="relative flex items-center">
+                            <input type="number" id="acAmper" step="1" min="1" max="63" value="16" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 px-3 pl-10 focus:outline-none focus:ring-2 focus:ring-evGreen-500 font-mono text-lg font-bold">
+                            <i data-lucide="gauge" class="w-5 h-5 absolute left-3 text-gray-400"></i>
+                            <span class="absolute right-3 text-sm text-gray-400 font-medium">A</span>
+                        </div>
+                        <!-- Quick Amperage Selectors -->
+                        <div class="flex gap-2 mt-2">
+                            <button type="button" onclick="setAmper(10)" class="flex-1 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg font-medium hover:border-evGreen-500">10A</button>
+                            <button type="button" onclick="setAmper(16)" class="flex-1 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg font-medium hover:border-evGreen-500">16A</button>
+                            <button type="button" onclick="setAmper(32)" class="flex-1 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg font-medium hover:border-evGreen-500">32A</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DC Specific Controls -->
+                <div id="dcControls" class="space-y-4 hidden">
+                    <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-2xl border border-gray-100 dark:border-gray-800">
+                        <label for="dcPower" class="block text-sm font-semibold mb-1">Şarj İstasyon Gücü (kW)</label>
+                        <div class="relative flex items-center">
+                            <input type="number" id="dcPower" step="1" min="1" max="350" value="50" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 px-3 pl-10 focus:outline-none focus:ring-2 focus:ring-evGreen-500 font-mono text-lg font-bold">
+                            <i data-lucide="zap" class="w-5 h-5 absolute left-3 text-gray-400"></i>
+                            <span class="absolute right-3 text-sm text-gray-400 font-medium">kW</span>
+                        </div>
+                        <!-- Quick DC Power Presets -->
+                        <div class="flex gap-2 mt-2">
+                            <button type="button" onclick="setDcPower(50)" class="flex-1 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg font-medium hover:border-evGreen-500">50 kW</button>
+                            <button type="button" onclick="setDcPower(120)" class="flex-1 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg font-medium hover:border-evGreen-500">120 kW</button>
+                            <button type="button" onclick="setDcPower(180)" class="flex-1 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg font-medium hover:border-evGreen-500">180 kW</button>
+                            <button type="button" onclick="setDcPower(300)" class="flex-1 py-1 text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg font-medium hover:border-evGreen-500">300 kW</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shared Controls: Battery & Price -->
+                <div class="space-y-4">
+                    <!-- Battery Capacity -->
+                    <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-2xl border border-gray-100 dark:border-gray-800">
+                        <label for="batteryCapacity" class="block text-sm font-semibold mb-1">Batarya Kapasitesi</label>
+                        <div class="relative flex items-center">
+                            <input type="number" id="batteryCapacity" step="0.5" min="1" max="200" value="60" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 px-3 pl-10 focus:outline-none focus:ring-2 focus:ring-evGreen-500 font-mono text-lg font-bold">
+                            <i data-lucide="battery-charging" class="w-5 h-5 absolute left-3 text-gray-400"></i>
+                            <span class="absolute right-3 text-sm text-gray-400 font-medium">kWh</span>
+                        </div>
+                    </div>
+
+                    <!-- SOC Selectors (Current -> Target) -->
+                    <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-semibold">Şarj Seviyesi (SOC)</span>
+                            <span class="text-xs font-mono font-bold text-evGreen-600 dark:text-evGreen-400" id="socDeltaText">%20 ➔ %80 (+60%)</span>
+                        </div>
+
+                        <!-- Sliders -->
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                                    <span>Mevcut Şarj</span>
+                                    <span id="currentSocVal" class="font-bold text-gray-700 dark:text-gray-300">%20</span>
+                                </div>
+                                <input type="range" id="currentSoc" min="0" max="99" value="20" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                                    <span>Hedef Şarj</span>
+                                    <span id="targetSocVal" class="font-bold text-gray-700 dark:text-gray-300">%80</span>
+                                </div>
+                                <input type="range" id="targetSoc" min="1" max="100" value="80" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Price per kWh -->
+                    <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-2xl border border-gray-100 dark:border-gray-800">
+                        <label for="pricePerKwh" class="block text-sm font-semibold mb-1">Birim Fiyat (kW Başına)</label>
+                        <div class="relative flex items-center">
+                            <input type="number" id="pricePerKwh" step="0.1" min="0" max="100" value="3.50" class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 px-3 pl-10 focus:outline-none focus:ring-2 focus:ring-evGreen-500 font-mono text-lg font-bold">
+                            <i data-lucide="banknote" class="w-5 h-5 absolute left-3 text-gray-400"></i>
+                            <span class="absolute right-3 text-sm text-gray-400 font-medium">₺ / kWh</span>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Results Card Section -->
+            <div class="bg-gradient-to-br from-gray-900 to-gray-800 text-white rounded-3xl p-5 shadow-xl relative overflow-hidden">
+                <!-- Background Accent Circle -->
+                <div class="absolute -right-10 -bottom-10 w-36 h-36 bg-evGreen-500/10 rounded-full blur-2xl"></div>
+
+                <div class="text-xs uppercase tracking-wider text-gray-400 font-bold mb-4 flex items-center justify-between">
+                    <span>Tahmini Hesaplama</span>
+                    <span id="activeModeBadge" class="bg-evGreen-500/20 text-evGreen-400 border border-evGreen-500/30 px-2 py-0.5 rounded-full text-[10px]">AC MODU</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Charge Time -->
+                    <div class="col-span-2 bg-white/5 backdrop-blur border border-white/10 p-4 rounded-2xl">
+                        <span class="text-xs text-gray-400 block mb-1">Tahmini Şarj Süresi</span>
+                        <div class="flex items-baseline space-x-2">
+                            <span id="resTime" class="text-3xl font-extrabold tracking-tight text-evGreen-400 font-mono">0sa 0dk</span>
+                            <span class="text-xs text-gray-400" id="resPowerRate">(0.0 kW)</span>
+                        </div>
+                    </div>
+
+                    <!-- Total Cost -->
+                    <div class="bg-white/5 backdrop-blur border border-white/10 p-3.5 rounded-2xl">
+                        <span class="text-xs text-gray-400 block mb-1">Toplam Maliyet</span>
+                        <span id="resCost" class="text-2xl font-bold font-mono text-white">0.00 ₺</span>
+                    </div>
+
+                    <!-- Needed Energy -->
+                    <div class="bg-white/5 backdrop-blur border border-white/10 p-3.5 rounded-2xl">
+                        <span class="text-xs text-gray-400 block mb-1">Aktarılacak Enerji</span>
+                        <span id="resEnergy" class="text-2xl font-bold font-mono text-white">0.0 kWh</span>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Footer Info -->
+        <footer class="p-3 text-center text-xs text-gray-400 dark:text-gray-500 border-t border-gray-100 dark:border-gray-800">
+            *Hesaplamalar ideal şarj eğrisi ve verimlilik (%100) varsayımı ile yapılır.
+        </footer>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        // State variables
+        let currentTab = 'ac'; // 'ac' or 'dc'
+
+        // Input Elements
+        const elAcAmper = document.getElementById('acAmper');
+        const elDcPower = document.getElementById('dcPower');
+        const elBatteryCapacity = document.getElementById('batteryCapacity');
+        const elCurrentSoc = document.getElementById('currentSoc');
+        const elTargetSoc = document.getElementById('targetSoc');
+        const elPricePerKwh = document.getElementById('pricePerKwh');
+        const elAcKwCalculated = document.getElementById('acKwCalculated');
+
+        // Output Elements
+        const elResTime = document.getElementById('resTime');
+        const elResCost = document.getElementById('resCost');
+        const elResEnergy = document.getElementById('resEnergy');
+        const elResPowerRate = document.getElementById('resPowerRate');
+        const elActiveModeBadge = document.getElementById('activeModeBadge');
+
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Theme Toggle Logic
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        const themeIcon = document.getElementById('themeIcon');
+        
+        // Detect system theme or saved theme
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            themeIcon.setAttribute('data-lucide', 'sun');
+        } else {
+            document.documentElement.classList.remove('dark');
+            themeIcon.setAttribute('data-lucide', 'moon');
+        }
+        lucide.createIcons();
+
+        themeToggleBtn.addEventListener('click', () => {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                themeIcon.setAttribute('data-lucide', 'moon');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                themeIcon.setAttribute('data-lucide', 'sun');
+            }
+            lucide.createIcons();
+        });
+
+        // Tab Switching
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabAc = document.getElementById('tabAc');
+            const tabDc = document.getElementById('tabDc');
+            const acControls = document.getElementById('acControls');
+            const dcControls = document.getElementById('dcControls');
+
+            if (tab === 'ac') {
+                tabAc.className = "flex-1 py-3 rounded-xl flex items-center justify-center space-x-2 transition-all duration-200 shadow-sm bg-white dark:bg-gray-700 text-evGreen-600 dark:text-evGreen-500 font-semibold";
+                tabDc.className = "flex-1 py-3 rounded-xl flex items-center justify-center space-x-2 transition-all duration-200 text-gray-500 dark:text-gray-400 hover:text-gray-700 font-semibold";
+                acControls.classList.remove('hidden');
+                dcControls.classList.add('hidden');
+                elActiveModeBadge.textContent = "AC MODU";
+            } else {
+                tabDc.className = "flex-1 py-3 rounded-xl flex items-center justify-center space-x-2 transition-all duration-200 shadow-sm bg-white dark:bg-gray-700 text-evGreen-600 dark:text-evGreen-500 font-semibold";
+                tabAc.className = "flex-1 py-3 rounded-xl flex items-center justify-center space-x-2 transition-all duration-200 text-gray-500 dark:text-gray-400 hover:text-gray-700 font-semibold";
+                dcControls.classList.remove('hidden');
+                acControls.classList.add('hidden');
+                elActiveModeBadge.textContent = "DC HIZLI ŞARJ";
+            }
+
+            saveToLocalStorage();
+            calculate();
+        }
+
+        // Helper functions for preset buttons
+        function setAmper(val) {
+            elAcAmper.value = val;
+            saveToLocalStorage();
+            calculate();
+        }
+
+        function setDcPower(val) {
+            elDcPower.value = val;
+            saveToLocalStorage();
+            calculate();
+        }
+
+        // Phase UI update styling
+        function updatePhaseUI() {
+            const phaseVal = document.querySelector('input[name="phase"]:checked').value;
+            const p1Label = document.getElementById('phase1Label');
+            const p3Label = document.getElementById('phase3Label');
+
+            if (phaseVal === '1') {
+                p1Label.className = "relative flex items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all border-evGreen-500 bg-evGreen-50 dark:bg-evGreen-950/30 text-evGreen-700 dark:text-evGreen-400 font-medium";
+                p3Label.className = "relative flex items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-medium";
+            } else {
+                p3Label.className = "relative flex items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all border-evGreen-500 bg-evGreen-50 dark:bg-evGreen-950/30 text-evGreen-700 dark:text-evGreen-400 font-medium";
+                p1Label.className = "relative flex items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-medium";
+            }
+        }
+
+        // Main Calculation Engine
+        function calculate() {
+            let curSoc = parseFloat(elCurrentSoc.value) || 0;
+            let tarSoc = parseFloat(elTargetSoc.value) || 0;
+
+            // Ensure Target >= Current
+            if (tarSoc < curSoc) {
+                tarSoc = curSoc;
+                elTargetSoc.value = tarSoc;
+            }
+
+            // Update UI texts for SOC
+            document.getElementById('currentSocVal').textContent = `%${curSoc}`;
+            document.getElementById('targetSocVal').textContent = `%${tarSoc}`;
+            document.getElementById('socDeltaText').textContent = `%${curSoc} ➔ %${tarSoc} (+${tarSoc - curSoc}%)`;
+
+            const capacity = parseFloat(elBatteryCapacity.value) || 0;
+            const price = parseFloat(elPricePerKwh.value) || 0;
+
+            // Energy needed calculation (kWh)
+            const energyNeeded = (capacity * (tarSoc - curSoc)) / 100;
+
+            let powerKw = 0;
+
+            if (currentTab === 'ac') {
+                const amper = parseFloat(elAcAmper.value) || 0;
+                const phase = parseInt(document.querySelector('input[name="phase"]:checked').value);
+                
+                if (phase === 1) {
+                    // Single phase: P = (230V * A) / 1000
+                    powerKw = (230 * amper) / 1000;
+                } else {
+                    // Three phase: P = (3 * 230V * A) / 1000 or (√3 * 400V * A) / 1000
+                    powerKw = (3 * 230 * amper) / 1000;
+                }
+                elAcKwCalculated.textContent = `${powerKw.toFixed(1)} kW`;
+            } else {
+                powerKw = parseFloat(elDcPower.value) || 0;
+            }
+
+            // Total Cost
+            const totalCost = energyNeeded * price;
+
+            // Charging Time (Hours)
+            let totalHours = 0;
+            if (powerKw > 0) {
+                totalHours = energyNeeded / powerKw;
+            }
+
+            const hours = Math.floor(totalHours);
+            const minutes = Math.round((totalHours - hours) * 60);
+
+            // Output Rendering
+            if (powerKw <= 0 || energyNeeded <= 0) {
+                elResTime.textContent = "0sa 0dk";
+            } else if (hours > 0) {
+                elResTime.textContent = `${hours}sa ${minutes}dk`;
+            } else {
+                elResTime.textContent = `${minutes}dk`;
+            }
+
+            elResCost.textContent = `${totalCost.toFixed(2)} ₺`;
+            elResEnergy.textContent = `${energyNeeded.toFixed(1)} kWh`;
+            elResPowerRate.textContent = `(${powerKw.toFixed(1)} kW)`;
+
+            saveToLocalStorage();
+        }
+
+        // LocalStorage Management
+        function saveToLocalStorage() {
+            const data = {
+                tab: currentTab,
+                acAmper: elAcAmper.value,
+                phase: document.querySelector('input[name="phase"]:checked')?.value || '1',
+                dcPower: elDcPower.value,
+                batteryCapacity: elBatteryCapacity.value,
+                currentSoc: elCurrentSoc.value,
+                targetSoc: elTargetSoc.value,
+                pricePerKwh: elPricePerKwh.value
+            };
+            localStorage.setItem('ev_calculator_data', JSON.stringify(data));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('ev_calculator_data');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    if (data.acAmper) elAcAmper.value = data.acAmper;
+                    if (data.dcPower) elDcPower.value = data.dcPower;
+                    if (data.batteryCapacity) elBatteryCapacity.value = data.batteryCapacity;
+                    if (data.currentSoc) elCurrentSoc.value = data.currentSoc;
+                    if (data.targetSoc) elTargetSoc.value = data.targetSoc;
+                    if (data.pricePerKwh) elPricePerKwh.value = data.pricePerKwh;
+                    if (data.phase) {
+                        const phaseRadio = document.querySelector(`input[name="phase"][value="${data.phase}"]`);
+                        if (phaseRadio) phaseRadio.checked = true;
+                    }
+                    if (data.tab) {
+                        switchTab(data.tab);
+                    } else {
+                        switchTab('ac');
+                    }
+                } catch (e) {
+                    console.error("Hafıza yüklenirken hata:", e);
+                }
+            } else {
+                switchTab('ac');
+            }
+            updatePhaseUI();
+        }
+
+        // Event Listeners for real-time recalculation
+        const inputs = [elAcAmper, elDcPower, elBatteryCapacity, elCurrentSoc, elTargetSoc, elPricePerKwh];
+        inputs.forEach(input => {
+            input.addEventListener('input', calculate);
+            input.addEventListener('change', calculate);
+        });
+
+        // Load saved state on start
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFromLocalStorage();
+            calculate();
+        });
+    </script>
+</body>
+</html>
